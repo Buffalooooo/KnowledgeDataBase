@@ -1,0 +1,9 @@
+# Obsidian 本地缓存配置（不同设备不同，不同步）
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.obsidian/plugins/*/data.json
+
+# 系统文件
+Thumbs.db
+.DS_Store
