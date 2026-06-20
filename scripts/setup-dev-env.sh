@@ -170,6 +170,7 @@ check_packages() {
         # ===== 编辑器与终端 =====
         "vim:vim 编辑器"
         "nano:nano 编辑器"
+        "gedit:gedit 图形化文本编辑器"
         "screen:screen 终端复用"
         "tmux:tmux 终端复用（增强版）"
         "bash-completion:命令补全增强"
