@@ -1,7 +1,14 @@
-# Obsidian 本地缓存
+# Obsidian 本地缓存（不同设备不同，不同步）
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 .obsidian/cache/
+.obsidian/plugins/*/data.json
+
+# 临时/未命名画布
+*.canvas
+
+# Smart Connections 插件缓存
+.smart-env/
 
 # 系统文件
 Thumbs.db
