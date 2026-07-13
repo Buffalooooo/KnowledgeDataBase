@@ -93,6 +93,7 @@ check_packages() {
         "cpio:cpio 归档工具"
         "zstd:Zstd 压缩"
         "liblz4-tool:LZ4 压缩工具"
+        "lz4:lz4c 命令支持"
 
         # Python 扩展
         "python3-pexpect:Python expect"
