@@ -13,3 +13,9 @@
 # 系统文件
 Thumbs.db
 .DS_Store
+
+
+
+
+# Ignore Smart Environment folder
+.smart-env
