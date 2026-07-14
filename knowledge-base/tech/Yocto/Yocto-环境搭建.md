@@ -47,6 +47,7 @@ chmod +x setup-dev-env.sh
 | `texinfo` | 文档构建 |
 | `chrpath` / `socat` / `cpio` | 构建工具链所需 |
 | `zstd` / `liblz4-tool` / `lz4` | sstate-cache 高速压缩（`lz4` 提供 `lz4c` 命令） |
+| `libcrypt-dev` | Python _crypt 模块编译支持 |
 | `python3-pexpect` / `python3-git` / `python3-jinja2` / `python3-subunit` | BitBake Python 扩展 |
 | `libegl1-mesa` / `libsdl1.2-dev` / `mesa-common-dev` | QEMU 图形显示 |
 | `debianutils` / `iputils-ping` | 网络工具 |
@@ -193,6 +194,27 @@ sudo sysctl -p /etc/sysctl.d/99-bitbake.conf
 ```bash
 sudo sysctl -w kernel.unprivileged_userns_clone=1
 ```
+
+---
+
+### 6. python3-native 构建失败 — 缺少 _crypt 模块
+
+**现象**：`bitbake core-image-minimal` 在构建 `python3-native` 时报错：
+```
+The necessary bits to build these optional modules were not found:
+_crypt
+```
+`do_install` 阶段退出码 1，构建终止。
+
+**原因**：宿主机缺少 `libcrypt-dev`，导致 Python 3.12 的 `_crypt` 模块无法编译。
+
+**解决方案**：
+```bash
+sudo apt install libcrypt-dev -y
+bitbake python3-native -c cleansstate
+bitbake core-image-minimal
+```
+同步更新了安装脚本 `scripts/setup-yocto-deps.sh`，已加入 `libcrypt-dev` 包。
 
 
 ## 参考
