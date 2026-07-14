@@ -106,6 +106,9 @@ runqemu qemux86-64
 | 内存 | |
 | 磁盘剩余 | |
 | Poky 版本 | scarthgap（LTS） |
+| SSH IP | 192.168.112.128 |
+| SSH 用户 | buffalo |
+| SSH 密码 | 123456 |
 
 ## 安装命令记录
 
