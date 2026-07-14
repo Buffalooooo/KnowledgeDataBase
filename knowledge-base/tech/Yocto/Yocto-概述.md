@@ -81,6 +81,54 @@ bitbake -g core-image-minimal    # 生成依赖图（dot 格式）
 
 ---
 
+### 构建缓存机制（DL_DIR / SSTATE_DIR）
+
+Yocto 通过两级缓存避免重复下载和编译，大幅加速后续构建：
+
+#### 一级缓存：DL_DIR（源码包下载缓存）
+
+- **位置**：默认 `build/downloads/`
+- **缓存内容**：从网络下载的原始源码包（`.tar.gz`、`.git` 等）
+- **大小参考**：首次构建 `core-image-minimal` 后约 **1.5~2 GB**
+- **生命周期**：除非手动删除或执行 `cleanall`，否则永久保留
+- **触发重新 fetch 的情况**：
+  - `bitbake <包> -c cleanall`（清理下载+编译产物）
+  - `bitbake <包> -c fetch`（强制重新下载）
+  - 修改了 `SRC_URI` 或 `PREFERRED_VERSION`
+  - 删除了 `downloads/` 目录
+
+```bitbake
+# 可在 local.conf 中自定义路径（多个 build 共享同一份缓存）
+DL_DIR = "/home/share/yocto/downloads"
+```
+
+#### 二级缓存：SSTATE_DIR（编译产物缓存）
+
+- **位置**：默认 `build/sstate-cache/`
+- **缓存内容**：每个 Recipe 编译完成后的打包产物（.tgz）
+- **作用**：命中缓存的包直接跳过 `do_configure → do_compile → do_package`，仅解压恢复
+- **触发重新编译的情况**：
+  - `bitbake <包> -c clean`（只清编译产物，保留下载）
+  - 修改了 Recipe 或依赖关系
+  - sstate-cache 被删除
+
+```bitbake
+# 可在 local.conf 中自定义路径
+SSTATE_DIR = "/home/share/yocto/sstate-cache"
+```
+
+#### 缓存命中顺序
+
+```
+SRC_URI 指定地址 → DL_DIR（检查是否存在）→ do_fetch（只在 DL_DIR 没有时才下载）
+                    →
+SSTATE_DIR（检查是否有缓存）→ 有则跳过编译直接恢复 → 无则执行完整任务链
+```
+
+> **实际表现**：第一次 `bitbake core-image-minimal` 耗时 2-6 小时（下载+编译全部包）。第二次构建（只改少量配置）通常几分钟到几十分钟，因为大部分包命中缓存直接跳过。
+
+---
+
 ### Recipe（配方）
 
 Recipe 是 Yocto 中最基本的单位，**一个 Recipe 定义一个软件包如何被构建**。
