@@ -67,149 +67,17 @@ build/
 
 ## 3.2 local.conf 详解
 
-`build/conf/local.conf` 是 Yocto 构建的主要配置文件。以下是关键变量及其作用：
-
-### 核心变量
-
-| 变量 | 示例 | 说明 |
-|------|------|------|
-| `MACHINE` | `MACHINE = "qemux86-64"` | 指定目标硬件平台 |
-| `DISTRO` | `DISTRO = "poky"` | 发行版策略配置 |
-| `TMPDIR` | `TMPDIR = "${TOPDIR}/tmp"` | 构建临时目录路径 |
-| `DL_DIR` | `DL_DIR = "${TOPDIR}/../downloads"` | 源码下载缓存目录，建议跨项目共享 |
-| `SSTATE_DIR` | `SSTATE_DIR = "${TOPDIR}/../sstate-cache"` | 共享状态缓存目录，建议跨项目共享 |
-| `PACKAGE_CLASSES` | `PACKAGE_CLASSES = "package_ipk"` | 包格式：`package_ipk`、`package_deb`、`package_rpm` |
-
-### 并行构建
-
-```conf
-# CPU 核心数与 BitBake 任务数的关系
-BB_NUMBER_THREADS = "4"        # BitBake 同时执行的任务数
-PARALLEL_MAKE = "-j 4"         # make 的并行编译选项
-
-# 推荐：直接让 BitBake 自动检测
-BB_NUMBER_THREADS = "${@bb.utils.cpu_count()}"
-PARALLEL_MAKE = "-j ${@bb.utils.cpu_count()}"
-```
-
-### 常用配置项
-
-```conf
-# 磁盘空间监控（构建过程中检查剩余空间）
-BB_DISKMON_DIRS = "\
-    STOPTASKS,${TMPDIR},1G,100K \
-    STOPTASKS,${DL_DIR},1G,100K \
-    STOPTASKS,${SSTATE_DIR},1G,100K \
-    ABORT,${TMPDIR},500M,1K \
-    ABORT,${DL_DIR},500M,1K"
-
-# 启用镜像（加速首次构建，从预构建服务器下载）
-BB_GENERATE_MIRROR_TARBALLS = "1"
-
-# 网络访问
-BB_NO_NETWORK = "0"            # 1 表示离线构建模式
-
-# 调试信息
-INHERIT += "rm_work"           # 构建完成后自动清理工作目录（节省磁盘）
-INHERIT += "buildstats"        # 记录构建统计信息
-INHERIT += "buildhistory"      # 记录构建历史，跟踪大小变化
-```
-
-> **建议**：`DL_DIR` 和 `SSTATE_DIR` 最好设置到 `build/` 目录之外（如 `~/yocto/downloads`），这样不同项目间可以共享缓存，避免重复下载和编译。
+> 本章节内容已移出到独立文档 → [[Yocto-local.conf详解]]
+>
+> 包含：目标定义、目录配置、性能调优、磁盘空间保护、包和镜像控制、网络和缓存优化、调试和分析、配置版本管理、完整开发示例、速查索引。
 
 ---
 
 ## 3.3 bblayers.conf 与 Layer 概念
 
-### 文件结构
-
-`build/conf/bblayers.conf` 的内容示例：
-
-```conf
-# POKY_BBLAYERS_CONF_VERSION 用于检查版本兼容性
-BBLAYERS_LAYERINDEX_URLS ?= "layers.openembedded.org"
-BBLAYERS_LAYERINDEX_API_VERSION ?= "1"
-
-BBLAYERS ?= " \
-  /path/to/poky/meta \
-  /path/to/poky/meta-poky \
-  /path/to/poky/meta-yocto-bsp \
-  "
-```
-
-### 理解 `BBLAYERS`
-
-- `BBLAYERS` 列出所有启用的 Layer 的**绝对路径**
-- BitBake 按 Layer 在 `BBLAYERS` 中出现的**顺序**加载 Recipe
-- 后加载的 Layer 中的 Recipe 会覆盖先加载的同名 Recipe
-
-### Layer 优先级（BBFILE_PRIORITY）
-
-每个 Layer 有一个优先级，数值越大优先级越高：
-
-```conf
-# 在 meta-custom/conf/layer.conf 中
-BBFILE_PRIORITY_meta-custom = "10"
-```
-
-默认优先级通常是：
-- `meta` (OE-Core)：5
-- `meta-poky`：5
-- `meta-yocto-bsp`：5
-- `meta-<vendor>`：通常 5-8
-- 自定义 Layer 建议设为 6-10，确保能覆盖默认行为
-
-> **优先级机制**：当两个 Layer 提供同名的 `.bb` 文件时，优先级高的 Layer 生效。当使用 `.bbappend` 时，所有匹配的 `.bbappend` 都会应用到基础 Recipe 上，优先级影响执行顺序。
-
-### Layer 命名规范
-
-- 名称以 `meta-` 开头（约定而非强制，但强烈建议遵守）
-- 放在 `sources/` 或 `layers/` 目录下统一管理
-
-### Layer 的检索机制
-
-BitBake 怎么知道去哪里找 Layer？流程如下：
-
-```
-bblayers.conf          ← 入口：列出所有 Layer 的绝对路径
-     │
-     ▼
-  每个 Layer 目录       ← BitBake 进入每个路径
-     │
-     ▼
-  conf/layer.conf       ← 关键：有这个文件才算 Layer
-     │
-     ├── BBFILE_COLLECTIONS    →  Layer 的标识名（如 "core"）
-     ├── BBFILE_PATTERN_core   →  哪些 .bb 文件属于该 Layer
-     ├── BBFILE_PRIORITY_core  →  优先级（决定覆盖关系）
-     ├── LAYERDEPENDS_core     →  依赖的其他 Layer
-     └── LAYERSERIES_COMPAT_core → 兼容的 Yocto 版本
-     │
-     ▼
-  扫描 .bb / .bbappend  ← 注册到 BitBake 的 Recipe 数据库
-```
-
-**关键点**：
-- `bblayers.conf` 没写的 Layer，即使磁盘上有目录也不会被加载
-- 添加 Layer 用 `bitbake-layers add-layer <path>`，或手动编辑 `bblayers.conf`
-- BitBake 不会递归搜索子目录，只扫描 `BBFILE_PATTERN` 匹配范围内的 `.bb` 文件
-
-**判断一个目录是不是 Layer**：不看目录名是否以 `meta-` 开头，而是看有没有 `conf/layer.conf`。
-
-### 常用命令
-
-```bash
-# 列出所有已启用的 Layer
-bitbake-layers show-layers
-
-# 列出所有可用 Recipe（按 Layer 分组）
-bitbake-layers show-recipes
-
-# 查看特定 Recipe 来自哪个 Layer
-bitbake-layers show-recipes <recipe-name>
-```
-
----
+> 本章节内容已移出到独立文档 → [[Yocto-bblayers与Layer详解]]
+>
+> 包含：bblayers.conf 角色、layer.conf 六大变量（BBFILE_COLLECTIONS/PATTERN/PRIORITY/LAYERDEPENDS/LAYERRECOMMENDS/LAYERSERIES_COMPAT）、优先级 vs 加载顺序、.bbappend 特殊行为、Layer 目录规范、常用管理命令、常见问题排查。
 
 ## 3.4 基本调试命令
 
